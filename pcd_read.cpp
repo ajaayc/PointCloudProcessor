@@ -11,6 +11,7 @@
 
 using namespace std::chrono_literals;
 
+namespace cloud_helpers {
 void printCloudInfo(std::string cloud_name,
                     pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
   std::cout << cloud_name << " has: " << cloud->width * cloud->height
@@ -22,6 +23,7 @@ void printCloudPoints(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
     std::cout << "    " << point.x << " " << point.y << " " << point.z
               << std::endl;
 }
+} // namespace cloud_helpers
 
 class PointCloudVisualizationManager {
   pcl::visualization::PCLVisualizer::Ptr viewer;
@@ -209,13 +211,16 @@ int main() {
     return -1;
   }
 
-  printCloudInfo(eng.getOriginalCloudName(), eng.getOriginalCloud());
+  cloud_helpers::printCloudInfo(eng.getOriginalCloudName(),
+                                eng.getOriginalCloud());
 
   eng.filterOriginalCloud();
-  printCloudInfo(eng.getFilteredCloudName(), eng.getFilteredCloud());
+  cloud_helpers::printCloudInfo(eng.getFilteredCloudName(),
+                                eng.getFilteredCloud());
 
   eng.voxelizeFilteredCloud();
-  printCloudInfo(eng.getVoxelizedCloudName(), eng.getVoxelizedCloud());
+  cloud_helpers::printCloudInfo(eng.getVoxelizedCloudName(),
+                                eng.getVoxelizedCloud());
 
   std::string original_cloud_name = eng.getOriginalCloudName();
   std::string filtered_cloud_name = eng.getFilteredCloudName();
