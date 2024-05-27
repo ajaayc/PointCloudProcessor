@@ -180,8 +180,17 @@ private:
   void filterCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud,
                    pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud,
                    double filtering_meank, double filtering_stddevmulthresh) {
-    //TODO: To be implemented
+
+#ifndef FILTERING_DISABLED
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+    sor.setInputCloud(input_cloud);
+    sor.setMeanK(filtering_meank);
+    sor.setStddevMulThresh(filtering_stddevmulthresh);
+    sor.filter(*filtered_cloud);
+#else
     copyPointCloud(*input_cloud, *filtered_cloud);
+#endif
+
     return;
   }
 
