@@ -189,9 +189,7 @@ public:
     return loadCloudFromFile(original_cloud_filename, original_cloud);
   }
 
-  void filterOriginalCloud() {
-    filterCloud(original_cloud, filtered_cloud);
-  }
+  void filterOriginalCloud() { filterCloud(original_cloud, filtered_cloud); }
 
   void voxelizeFilteredCloud() {
     voxelizeCloud(filtered_cloud, voxelized_cloud);
@@ -260,7 +258,8 @@ private:
     // Create the filtering object
     pcl::VoxelGrid<pcl::PointXYZ> voxel_grid;
     voxel_grid.setInputCloud(input_cloud);
-    voxel_grid.setLeafSize(voxelization_leaf_size_x, voxelization_leaf_size_y, voxelization_leaf_size_z);
+    voxel_grid.setLeafSize(voxelization_leaf_size_x, voxelization_leaf_size_y,
+                           voxelization_leaf_size_z);
     voxel_grid.filter(*voxelized_cloud);
 #else
     copyPointCloud(*input_cloud, *voxelized_cloud);
@@ -317,18 +316,18 @@ private:
 
 int main() {
   std::string file_name = "scans.pcd";
-  int filtering_meank = 30;
-  double filtering_stddevmulthresh = 1.0f;
-  double voxelization_leaf_size_x = 0.3f;
-  double voxelization_leaf_size_y = 0.3f;
-  double voxelization_leaf_size_z = 0.3f;
+  int filtering_meank{30};
+  double filtering_stddevmulthresh{1.0f};
+  double voxelization_leaf_size_x{0.3f};
+  double voxelization_leaf_size_y{0.3f};
+  double voxelization_leaf_size_z{0.3f};
 
-  unsigned segmentation_k_search_count = 50;
-  unsigned segmentation_min_cluster_size = 300;
-  unsigned segmentation_max_cluster_size = 1000000;
-  unsigned segmentation_num_neighbors = 30;
-  double segmentation_smoothness_threshold = 3.0 / 180.0 * M_PI;
-  double segmentation_curvature_threshold = 1.0;
+  unsigned segmentation_k_search_count{50};
+  unsigned segmentation_min_cluster_size{300};
+  unsigned segmentation_max_cluster_size{1000000};
+  unsigned segmentation_num_neighbors{30};
+  double segmentation_smoothness_threshold{3.0 / 180.0 * M_PI};
+  double segmentation_curvature_threshold{1.0};
 
   PointCloudProcessorEngine eng{file_name,
                                 filtering_meank,
