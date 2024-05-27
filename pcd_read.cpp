@@ -1,9 +1,14 @@
 #include <iostream>
 #include <pcl/common/io.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/filters/filter_indices.h> // for pcl::removeNaNFromPointCloud
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/search/search.h>
+#include <pcl/segmentation/region_growing.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/point_cloud_color_handlers.h>
 #include <string>
@@ -23,6 +28,17 @@ void printCloudPoints(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
     std::cout << "    " << point.x << " " << point.y << " " << point.z
               << std::endl;
 }
+
+void printSegmentedCloudInfo(
+    const std::string &cloud_name,
+    const std::vector<pcl::PointIndices> &clusters,
+    pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud) {
+  std::cout << cloud_name << " has: " << cloud->width * cloud->height
+            << " data points." << std::endl;
+  std::cout << cloud_name << " has: " << clusters.size() << " clusters."
+            << std::endl;
+}
+
 } // namespace cloud_helpers
 
 class PointCloudVisualizationManager {
@@ -64,9 +80,10 @@ public:
 #endif
   }
 
-  void addSegmentedCloud(std::string cloud_name,
-                         pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
-    addCloud(cloud_name, cloud, 0.5, 0.5, 1.0, 1.0);
+  void addSegmentedCloud(std::string cloud_name, size_t num_clusters,
+                         pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud) {
+    addColoredSegmentedCloud(cloud_name, num_clusters, cloud, 0.5, 0.5, 1.0,
+                             1.0);
   }
 
   void runVisualization() {
@@ -77,6 +94,25 @@ public:
   }
 
 private:
+  void
+  addColoredSegmentedCloud(std::string cloud_name, unsigned num_clusters,
+                           pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud,
+                           double x_min, double y_min, double x_max,
+                           double y_max) {
+    int view_port_id = num_clouds++;
+
+    viewer->createViewPort(x_min, y_min, x_max, y_max, view_port_id);
+    viewer->setBackgroundColor(0, 0, 0, view_port_id);
+    std::string graph_text =
+        cloud_name + " (" + std::to_string(num_clusters) + " clusters)";
+    viewer->addText(graph_text, 10, 10, view_port_id + " text", view_port_id);
+    // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(
+    //     cloud);
+    //     viewer->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, cloud_name,
+    //                                             view_port_id);
+    viewer->addPointCloud<pcl::PointXYZRGB>(cloud, cloud_name, view_port_id);
+  }
+
   void addCloud(std::string cloud_name,
                 pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, double x_min,
                 double y_min, double x_max, double y_max) {
@@ -98,7 +134,8 @@ class PointCloudProcessorEngine {
   pcl::PointCloud<pcl::PointXYZ>::Ptr original_cloud;
   pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud;
   pcl::PointCloud<pcl::PointXYZ>::Ptr voxelized_cloud;
-  // TODO: Insert segmented cloud here
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmented_cloud;
+  std::vector<pcl::PointIndices> segmented_cloud_clusters;
 
   // Outlier filtering parameters
   const int filtering_meank;
@@ -121,6 +158,7 @@ public:
         original_cloud{new pcl::PointCloud<pcl::PointXYZ>},
         filtered_cloud{new pcl::PointCloud<pcl::PointXYZ>},
         voxelized_cloud{new pcl::PointCloud<pcl::PointXYZ>},
+        segmented_cloud{new pcl::PointCloud<pcl::PointXYZRGB>},
         filtering_meank{filtering_meank},
         filtering_stddevmulthresh{filtering_stddevmulthresh},
         voxelization_leaf_size_x{voxelization_leaf_size_x},
@@ -141,6 +179,12 @@ public:
                   voxelization_leaf_size_y, voxelization_leaf_size_z);
   }
 
+  void segmentVoxelizedCloud() {
+    pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
+    segmentCloud(voxelized_cloud, reg, segmented_cloud_clusters);
+    segmented_cloud = reg.getColoredCloud();
+  }
+
   pcl::PointCloud<pcl::PointXYZ>::ConstPtr getOriginalCloud() const {
     return original_cloud;
   }
@@ -153,11 +197,21 @@ public:
     return voxelized_cloud;
   }
 
+  pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr getSegmentedCloud() const {
+    return segmented_cloud;
+  }
+
+  const std::vector<pcl::PointIndices> &getSegmentedCloudClusters() const {
+    return segmented_cloud_clusters;
+  }
+
   std::string getOriginalCloudName() const { return "Original Cloud"; }
 
   std::string getFilteredCloudName() const { return "Filtered Cloud"; }
 
   std::string getVoxelizedCloudName() const { return "Voxelized Cloud"; }
+
+  std::string getSegmentedCloudName() const { return "Segmented Cloud"; }
 
 private:
   // Returns -1 if loading failed, 0 otherwise
@@ -210,9 +264,34 @@ private:
   }
 
   void segmentCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud,
-                    pcl::PointCloud<pcl::PointXYZ>::Ptr segmented_cloud) {
-    copyPointCloud(*input_cloud, *segmented_cloud);
-    return;
+                    pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> &reg,
+                    std::vector<pcl::PointIndices> &clusters) {
+    //                    pcl::PointCloud<pcl::PointXYZ>::Ptr segmented_cloud) {
+    // copyPointCloud(*input_cloud, *segmented_cloud);
+
+    pcl::search::Search<pcl::PointXYZ>::Ptr tree(
+        new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
+    normal_estimator.setSearchMethod(tree);
+    normal_estimator.setInputCloud(input_cloud);
+    normal_estimator.setKSearch(50);
+    normal_estimator.compute(*normals);
+
+    pcl::IndicesPtr indices(new std::vector<int>);
+    pcl::removeNaNFromPointCloud(*input_cloud, *indices);
+
+    reg.setMinClusterSize(100);
+    reg.setMaxClusterSize(1000000);
+    reg.setSearchMethod(tree);
+    reg.setNumberOfNeighbours(30);
+    reg.setInputCloud(input_cloud);
+    reg.setIndices(indices);
+    reg.setInputNormals(normals);
+    reg.setSmoothnessThreshold(3.0 / 180.0 * M_PI);
+    reg.setCurvatureThreshold(1.0);
+
+    reg.extract(clusters);
   }
 };
 
@@ -246,9 +325,16 @@ int main() {
   cloud_helpers::printCloudInfo(eng.getVoxelizedCloudName(),
                                 eng.getVoxelizedCloud());
 
+  eng.segmentVoxelizedCloud();
+
+  cloud_helpers::printSegmentedCloudInfo(eng.getSegmentedCloudName(),
+                                         eng.getSegmentedCloudClusters(),
+                                         eng.getSegmentedCloud());
+
   std::string original_cloud_name = eng.getOriginalCloudName();
   std::string filtered_cloud_name = eng.getFilteredCloudName();
   std::string voxelized_cloud_name = eng.getVoxelizedCloudName();
+  std::string segmented_cloud_name = eng.getSegmentedCloudName();
 
   pcl::PointCloud<pcl::PointXYZ>::ConstPtr original_cloud =
       eng.getOriginalCloud();
@@ -256,9 +342,8 @@ int main() {
       eng.getFilteredCloud();
   pcl::PointCloud<pcl::PointXYZ>::ConstPtr voxelized_cloud =
       eng.getVoxelizedCloud();
-
-  // pcl::PointCloud<pcl::PointXYZ>::ConstPtr segmented_cloud =
-  //     eng.getSegmentedCloud();
+  pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr segmented_cloud =
+      eng.getSegmentedCloud();
 
   PointCloudVisualizationManager visualization_manager;
 
@@ -266,6 +351,9 @@ int main() {
   visualization_manager.addFilteredCloud(filtered_cloud_name, filtered_cloud);
   visualization_manager.addVoxelizedCloud(voxelized_cloud_name,
                                           voxelized_cloud);
+  visualization_manager.addSegmentedCloud(
+      segmented_cloud_name, eng.getSegmentedCloudClusters().size(),
+      segmented_cloud);
 
   visualization_manager.runVisualization();
 
