@@ -5,28 +5,11 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/point_cloud_color_handlers.h>
 #include <string>
 #include <thread>
 
 using namespace std::chrono_literals;
-
-pcl::visualization::PCLVisualizer::Ptr
-createSimpleVisualizer(std::string cloud_name,
-                       pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
-  // --------------------------------------------
-  // -----Open 3D viewer and add point cloud-----
-  // --------------------------------------------
-  pcl::visualization::PCLVisualizer::Ptr viewer(
-      new pcl::visualization::PCLVisualizer(cloud_name + " Viewer"));
-  viewer->setBackgroundColor(0, 0, 0);
-  viewer->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
-  viewer->setPointCloudRenderingProperties(
-      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
-  viewer->addCoordinateSystem(1.0);
-  viewer->initCameraParameters();
-  viewer->setSize(1200, 800);
-  return (viewer);
-}
 
 void printCloudInfo(std::string cloud_name,
                     pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
@@ -40,21 +23,62 @@ void printCloudPoints(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
               << std::endl;
 }
 
-void displayCloudWithVisualizer(
-    pcl::visualization::PCLVisualizer::Ptr visualizer) {
-  while (!visualizer->wasStopped()) {
-    visualizer->spinOnce(100);
-    std::this_thread::sleep_for(100ms);
-  }
-}
+class PointCloudVisualizationManager {
+  pcl::visualization::PCLVisualizer::Ptr viewer;
 
-void createVisualizerAndDisplayCloud(
-    const std::string &cloud_name,
-    pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
-  pcl::visualization::PCLVisualizer::Ptr visualizer =
-      createSimpleVisualizer(cloud_name, cloud);
-  displayCloudWithVisualizer(visualizer);
-}
+  size_t num_clouds;
+
+public:
+  PointCloudVisualizationManager()
+      : viewer{new pcl::visualization::PCLVisualizer("3D Viewer")}, num_clouds{
+                                                                        0} {
+    viewer->setPointCloudRenderingProperties(
+        pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1);
+    viewer->addCoordinateSystem(1.0);
+    viewer->initCameraParameters();
+    viewer->setSize(1200, 800);
+  }
+
+  void addOriginalCloud(std::string cloud_name,
+                        pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
+    addCloud(cloud_name, cloud, 0.0, 0.0, 0.5, 0.5);
+  }
+  void addFilteredCloud(std::string cloud_name,
+                        pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
+    addCloud(cloud_name, cloud, 0.5, 0.0, 1.0, 0.5);
+  }
+  void addVoxelizedCloud(std::string cloud_name,
+                         pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
+    addCloud(cloud_name, cloud, 0.0, 0.5, 0.5, 1.0);
+  }
+  void addSegmentedCloud(std::string cloud_name,
+                         pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
+    addCloud(cloud_name, cloud, 0.5, 0.5, 1.0, 1.0);
+  }
+
+  void runVisualization() {
+    while (!viewer->wasStopped()) {
+      viewer->spinOnce(100);
+      std::this_thread::sleep_for(100ms);
+    }
+  }
+
+private:
+  void addCloud(std::string cloud_name,
+                pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud, double x_min,
+                double y_min, double x_max, double y_max) {
+    int view_port_id = num_clouds++;
+
+    viewer->createViewPort(x_min, y_min, x_max, y_max, view_port_id);
+    viewer->setBackgroundColor(0, 0, 0, view_port_id);
+    viewer->addText(cloud_name, 10, 10, view_port_id + " text", view_port_id);
+    // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(
+    //     cloud);
+    //     viewer->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, cloud_name,
+    //                                             view_port_id);
+    viewer->addPointCloud<pcl::PointXYZ>(cloud, cloud_name, view_port_id);
+  }
+};
 
 class PointCloudProcessorEngine {
   std::string original_cloud_filename;
@@ -204,7 +228,17 @@ int main() {
   pcl::PointCloud<pcl::PointXYZ>::ConstPtr voxelized_cloud =
       eng.getVoxelizedCloud();
 
-  createVisualizerAndDisplayCloud(original_cloud_name, original_cloud);
+  // pcl::PointCloud<pcl::PointXYZ>::ConstPtr segmented_cloud =
+  //     eng.getSegmentedCloud();
+
+  PointCloudVisualizationManager visualization_manager;
+
+  visualization_manager.addOriginalCloud(original_cloud_name, original_cloud);
+  visualization_manager.addFilteredCloud(filtered_cloud_name, filtered_cloud);
+  visualization_manager.addVoxelizedCloud(voxelized_cloud_name,
+                                          voxelized_cloud);
+
+  visualization_manager.runVisualization();
 
   return (0);
 }
