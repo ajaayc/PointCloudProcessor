@@ -12,7 +12,7 @@
 using namespace std::chrono_literals;
 
 namespace cloud_helpers {
-void printCloudInfo(std::string cloud_name,
+void printCloudInfo(const std::string &cloud_name,
                     pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
   std::cout << cloud_name << " has: " << cloud->width * cloud->height
             << " data points." << std::endl;
@@ -47,12 +47,23 @@ public:
   }
   void addFilteredCloud(std::string cloud_name,
                         pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
+#ifndef FILTERING_DISABLED
     addCloud(cloud_name, cloud, 0.5, 0.0, 1.0, 0.5);
+#else
+    addCloud(cloud_name + " (No filtering performed)", cloud, 0.5, 0.0, 1.0,
+             0.5);
+#endif
   }
   void addVoxelizedCloud(std::string cloud_name,
                          pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
+#ifndef VOXELIZATION_DISABLED
     addCloud(cloud_name, cloud, 0.0, 0.5, 0.5, 1.0);
+#else
+    addCloud(cloud_name + " (No voxelization performed)", cloud, 0.0, 0.5, 0.5,
+             1.0);
+#endif
   }
+
   void addSegmentedCloud(std::string cloud_name,
                          pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
     addCloud(cloud_name, cloud, 0.5, 0.5, 1.0, 1.0);
@@ -170,11 +181,15 @@ private:
                      pcl::PointCloud<pcl::PointXYZ>::Ptr voxelized_cloud,
                      double leaf_size_x, double leaf_size_y,
                      double leaf_size_z) {
+#ifndef VOXELIZATION_DISABLED
     // Create the filtering object
     pcl::VoxelGrid<pcl::PointXYZ> voxel_grid;
     voxel_grid.setInputCloud(input_cloud);
     voxel_grid.setLeafSize(leaf_size_x, leaf_size_y, leaf_size_z);
     voxel_grid.filter(*voxelized_cloud);
+#else
+    copyPointCloud(*input_cloud, *voxelized_cloud);
+#endif
   }
 
   void filterCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud,
