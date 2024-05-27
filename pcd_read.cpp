@@ -63,11 +63,11 @@ public:
   }
   void addFilteredCloud(std::string cloud_name,
                         pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
-#ifndef FILTERING_DISABLED
+#ifndef OBTAIN_FILTERED_RESULT_FROM_FILE
     addCloud(cloud_name, cloud, 0.5, 0.0, 1.0, 0.5);
 #else
-    addCloud(cloud_name + " (No filtering performed)", cloud, 0.5, 0.0, 1.0,
-             0.5);
+    addCloud(cloud_name + " (Pre-computed filter result from file)", cloud, 0.5,
+             0.0, 1.0, 0.5);
 #endif
   }
   void addVoxelizedCloud(std::string cloud_name,
@@ -214,6 +214,11 @@ public:
   std::string getSegmentedCloudName() const { return "Segmented Cloud"; }
 
 private:
+  void writeCloudToFile(std::string file_name,
+                        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr) {
+    pcl::io::savePCDFileASCII(file_name, *cloud_ptr);
+  }
+
   // Returns -1 if loading failed, 0 otherwise
   int loadCloudFromFile(std::string file_name,
                         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr) {
@@ -249,15 +254,17 @@ private:
   void filterCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud,
                    pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud,
                    double filtering_meank, double filtering_stddevmulthresh) {
-
-#ifndef FILTERING_DISABLED
+    std::string filtered_cloud_filename{"filtered_cloud.pcd"};
+#ifndef OBTAIN_FILTERED_RESULT_FROM_FILE
     pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
     sor.setInputCloud(input_cloud);
     sor.setMeanK(filtering_meank);
     sor.setStddevMulThresh(filtering_stddevmulthresh);
     sor.filter(*filtered_cloud);
+    writeCloudToFile(filtered_cloud_filename, filtered_cloud);
 #else
-    copyPointCloud(*input_cloud, *filtered_cloud);
+    loadCloudFromFile(filtered_cloud_filename, filtered_cloud);
+    // copyPointCloud(*input_cloud, *filtered_cloud);
 #endif
 
     return;
