@@ -158,6 +158,12 @@ private:
     copyPointCloud(*input_cloud, *filtered_cloud);
     return;
   }
+
+  void segmentCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud,
+                    pcl::PointCloud<pcl::PointXYZ>::Ptr segmented_cloud) {
+    copyPointCloud(*input_cloud, *segmented_cloud);
+    return;
+  }
 };
 
 int main() {
