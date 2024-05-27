@@ -146,13 +146,27 @@ class PointCloudProcessorEngine {
   const double voxelization_leaf_size_y;
   const double voxelization_leaf_size_z;
 
+  // Segmentation parameters
+  unsigned segmentation_k_search_count;
+  unsigned segmentation_min_cluster_size;
+  unsigned segmentation_max_cluster_size;
+  unsigned segmentation_num_neighbors;
+  double segmentation_smoothness_threshold;
+  double segmentation_curvature_threshold;
+
 public:
   PointCloudProcessorEngine(const std::string &original_cloud_filename,
                             int filtering_meank,
                             double filtering_stddevmulthresh,
                             double voxelization_leaf_size_x,
                             double voxelization_leaf_size_y,
-                            double voxelization_leaf_size_z)
+                            double voxelization_leaf_size_z,
+                            unsigned segmentation_k_search_count,
+                            unsigned segmentation_min_cluster_size,
+                            unsigned segmentation_max_cluster_size,
+                            unsigned segmentation_num_neighbors,
+                            double segmentation_smoothness_threshold,
+                            double segmentation_curvature_threshold)
 
       : original_cloud_filename{original_cloud_filename},
         original_cloud{new pcl::PointCloud<pcl::PointXYZ>},
@@ -163,20 +177,24 @@ public:
         filtering_stddevmulthresh{filtering_stddevmulthresh},
         voxelization_leaf_size_x{voxelization_leaf_size_x},
         voxelization_leaf_size_y{voxelization_leaf_size_y},
-        voxelization_leaf_size_z{voxelization_leaf_size_z} {}
+        voxelization_leaf_size_z{voxelization_leaf_size_z},
+        segmentation_k_search_count{segmentation_k_search_count},
+        segmentation_min_cluster_size{segmentation_min_cluster_size},
+        segmentation_max_cluster_size{segmentation_max_cluster_size},
+        segmentation_num_neighbors{segmentation_num_neighbors},
+        segmentation_smoothness_threshold{segmentation_smoothness_threshold},
+        segmentation_curvature_threshold{segmentation_curvature_threshold} {}
 
   int loadOriginalCloudFromFile() {
     return loadCloudFromFile(original_cloud_filename, original_cloud);
   }
 
   void filterOriginalCloud() {
-    filterCloud(original_cloud, filtered_cloud, filtering_meank,
-                filtering_stddevmulthresh);
+    filterCloud(original_cloud, filtered_cloud);
   }
 
   void voxelizeFilteredCloud() {
-    voxelizeCloud(filtered_cloud, voxelized_cloud, voxelization_leaf_size_x,
-                  voxelization_leaf_size_y, voxelization_leaf_size_z);
+    voxelizeCloud(filtered_cloud, voxelized_cloud);
   }
 
   void segmentVoxelizedCloud() {
@@ -237,14 +255,12 @@ private:
   }
 
   void voxelizeCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud,
-                     pcl::PointCloud<pcl::PointXYZ>::Ptr voxelized_cloud,
-                     double leaf_size_x, double leaf_size_y,
-                     double leaf_size_z) {
+                     pcl::PointCloud<pcl::PointXYZ>::Ptr voxelized_cloud) {
 #ifndef VOXELIZATION_DISABLED
     // Create the filtering object
     pcl::VoxelGrid<pcl::PointXYZ> voxel_grid;
     voxel_grid.setInputCloud(input_cloud);
-    voxel_grid.setLeafSize(leaf_size_x, leaf_size_y, leaf_size_z);
+    voxel_grid.setLeafSize(voxelization_leaf_size_x, voxelization_leaf_size_y, voxelization_leaf_size_z);
     voxel_grid.filter(*voxelized_cloud);
 #else
     copyPointCloud(*input_cloud, *voxelized_cloud);
@@ -252,8 +268,7 @@ private:
   }
 
   void filterCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud,
-                   pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud,
-                   double filtering_meank, double filtering_stddevmulthresh) {
+                   pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud) {
     std::string filtered_cloud_filename{"filtered_cloud.pcd"};
 #ifndef OBTAIN_FILTERED_RESULT_FROM_FILE
     pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
@@ -273,8 +288,6 @@ private:
   void segmentCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud,
                     pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> &reg,
                     std::vector<pcl::PointIndices> &clusters) {
-    //                    pcl::PointCloud<pcl::PointXYZ>::Ptr segmented_cloud) {
-    // copyPointCloud(*input_cloud, *segmented_cloud);
 
     pcl::search::Search<pcl::PointXYZ>::Ptr tree(
         new pcl::search::KdTree<pcl::PointXYZ>);
@@ -282,21 +295,21 @@ private:
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
     normal_estimator.setSearchMethod(tree);
     normal_estimator.setInputCloud(input_cloud);
-    normal_estimator.setKSearch(50);
+    normal_estimator.setKSearch(segmentation_k_search_count);
     normal_estimator.compute(*normals);
 
     pcl::IndicesPtr indices(new std::vector<int>);
     pcl::removeNaNFromPointCloud(*input_cloud, *indices);
 
-    reg.setMinClusterSize(100);
-    reg.setMaxClusterSize(1000000);
+    reg.setMinClusterSize(segmentation_min_cluster_size);
+    reg.setMaxClusterSize(segmentation_max_cluster_size);
     reg.setSearchMethod(tree);
-    reg.setNumberOfNeighbours(30);
+    reg.setNumberOfNeighbours(segmentation_num_neighbors);
     reg.setInputCloud(input_cloud);
     reg.setIndices(indices);
     reg.setInputNormals(normals);
-    reg.setSmoothnessThreshold(3.0 / 180.0 * M_PI);
-    reg.setCurvatureThreshold(1.0);
+    reg.setSmoothnessThreshold(segmentation_smoothness_threshold);
+    reg.setCurvatureThreshold(segmentation_curvature_threshold);
 
     reg.extract(clusters);
   }
@@ -310,12 +323,25 @@ int main() {
   double voxelization_leaf_size_y = 0.3f;
   double voxelization_leaf_size_z = 0.3f;
 
+  unsigned segmentation_k_search_count = 50;
+  unsigned segmentation_min_cluster_size = 300;
+  unsigned segmentation_max_cluster_size = 1000000;
+  unsigned segmentation_num_neighbors = 30;
+  double segmentation_smoothness_threshold = 3.0 / 180.0 * M_PI;
+  double segmentation_curvature_threshold = 1.0;
+
   PointCloudProcessorEngine eng{file_name,
                                 filtering_meank,
                                 filtering_stddevmulthresh,
                                 voxelization_leaf_size_x,
                                 voxelization_leaf_size_y,
-                                voxelization_leaf_size_z};
+                                voxelization_leaf_size_z,
+                                segmentation_k_search_count,
+                                segmentation_min_cluster_size,
+                                segmentation_max_cluster_size,
+                                segmentation_num_neighbors,
+                                segmentation_smoothness_threshold,
+                                segmentation_curvature_threshold};
 
   if (eng.loadOriginalCloudFromFile() == -1) {
     return -1;
