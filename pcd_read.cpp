@@ -166,6 +166,9 @@ private:
     //     viewer->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, cloud_name,
     //                                             view_port_id);
     viewer->addPointCloud<pcl::PointXYZRGB>(cloud, cloud_name, view_port_id);
+
+    viewer->setPointCloudRenderingProperties(
+        pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, cloud_name);
   }
 
   void addCloud(std::string cloud_name,
