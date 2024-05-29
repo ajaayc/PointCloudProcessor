@@ -94,6 +94,28 @@ void printSegmentedCloudInfo(
             << std::endl;
 }
 
+void writeCloudToFile(std::string file_name,
+                      pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr) {
+  pcl::io::savePCDFileASCII(file_name, *cloud_ptr);
+}
+
+// Returns -1 if loading failed, 0 otherwise
+int loadCloudFromFile(std::string file_name,
+                      pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr) {
+  if (pcl::io::loadPCDFile<pcl::PointXYZ>(file_name, *cloud_ptr) ==
+      -1) //* load the file
+  {
+    std::string error_message = "Couldn't read file " + file_name + "\n";
+    PCL_ERROR(error_message.c_str());
+    return -1;
+  }
+  std::cout << "Loaded " << cloud_ptr->width * cloud_ptr->height
+            << " data points from " << file_name
+            << " with the following fields: " << std::endl;
+
+  return 0;
+}
+
 } // namespace cloud_helpers
 
 class PointCloudVisualizationManager {
@@ -188,7 +210,6 @@ private:
 };
 
 class PointCloudProcessorEngine {
-  std::string original_cloud_filename;
   pcl::PointCloud<pcl::PointXYZ>::Ptr original_cloud;
   pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud;
   pcl::PointCloud<pcl::PointXYZ>::Ptr voxelized_cloud;
@@ -213,8 +234,7 @@ class PointCloudProcessorEngine {
   double segmentation_curvature_threshold;
 
 public:
-  PointCloudProcessorEngine(const std::string &original_cloud_filename,
-                            int filtering_meank,
+  PointCloudProcessorEngine(int filtering_meank,
                             double filtering_stddevmulthresh,
                             double voxelization_leaf_size_x,
                             double voxelization_leaf_size_y,
@@ -226,8 +246,7 @@ public:
                             double segmentation_smoothness_threshold,
                             double segmentation_curvature_threshold)
 
-      : original_cloud_filename{original_cloud_filename},
-        original_cloud{new pcl::PointCloud<pcl::PointXYZ>},
+      : original_cloud{new pcl::PointCloud<pcl::PointXYZ>},
         filtered_cloud{new pcl::PointCloud<pcl::PointXYZ>},
         voxelized_cloud{new pcl::PointCloud<pcl::PointXYZ>},
         segmented_cloud{new pcl::PointCloud<pcl::PointXYZRGB>},
@@ -243,10 +262,6 @@ public:
         segmentation_smoothness_threshold{segmentation_smoothness_threshold},
         segmentation_curvature_threshold{segmentation_curvature_threshold} {}
 
-  int loadOriginalCloudFromFile() {
-    return loadCloudFromFile(original_cloud_filename, original_cloud);
-  }
-
   void filterOriginalCloud() { filterCloud(original_cloud, filtered_cloud); }
 
   void voxelizeFilteredCloud() {
@@ -257,6 +272,17 @@ public:
     pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
     segmentCloud(voxelized_cloud, reg, segmented_cloud_clusters);
     segmented_cloud = reg.getColoredCloud();
+  }
+
+  // If setOriginalCloud function is used, user is responsible for
+  // rerunning, filterOriginalCloud, voxelizeFilteredCloud, and
+  // segmentVoxelizedCloud (in that order).
+
+  //NOTE: Ptr is copied, so if changes to original pointer are made
+  //outside of the class, the changes will propagate to this object.
+  void setOriginalCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr new_original_cloud)
+  {
+     original_cloud = new_original_cloud;
   }
 
   pcl::PointCloud<pcl::PointXYZ>::ConstPtr getOriginalCloud() const {
@@ -288,28 +314,6 @@ public:
   std::string getSegmentedCloudName() const { return "Segmented Cloud"; }
 
 private:
-  void writeCloudToFile(std::string file_name,
-                        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr) {
-    pcl::io::savePCDFileASCII(file_name, *cloud_ptr);
-  }
-
-  // Returns -1 if loading failed, 0 otherwise
-  int loadCloudFromFile(std::string file_name,
-                        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr) {
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(file_name, *cloud_ptr) ==
-        -1) //* load the file
-    {
-      std::string error_message = "Couldn't read file " + file_name + "\n";
-      PCL_ERROR(error_message.c_str());
-      return -1;
-    }
-    std::cout << "Loaded " << cloud_ptr->width * cloud_ptr->height
-              << " data points from " << file_name
-              << " with the following fields: " << std::endl;
-
-    return 0;
-  }
-
   void voxelizeCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud,
                      pcl::PointCloud<pcl::PointXYZ>::Ptr voxelized_cloud) {
 #ifndef VOXELIZATION_DISABLED
@@ -333,9 +337,9 @@ private:
     sor.setMeanK(filtering_meank);
     sor.setStddevMulThresh(filtering_stddevmulthresh);
     sor.filter(*filtered_cloud);
-    writeCloudToFile(filtered_cloud_filename, filtered_cloud);
+    cloud_helpers::writeCloudToFile(filtered_cloud_filename, filtered_cloud);
 #else
-    loadCloudFromFile(filtered_cloud_filename, filtered_cloud);
+    cloud_helpers::loadCloudFromFile(filtered_cloud_filename, filtered_cloud);
     // copyPointCloud(*input_cloud, *filtered_cloud);
 #endif
 
@@ -373,7 +377,7 @@ private:
 };
 
 int main() {
-  std::string cloud_file_name = "scans.pcd";
+  std::string original_cloud_file_name = "scans.pcd";
   std::string parameters_file_name = "parameters.txt";
 
   int filtering_meank;                      //{30};
@@ -396,8 +400,13 @@ int main() {
       segmentation_num_neighbors, segmentation_smoothness_threshold,
       segmentation_curvature_threshold);
 
-  PointCloudProcessorEngine eng{cloud_file_name,
-                                filtering_meank,
+  pcl::PointCloud<pcl::PointXYZ>::Ptr original_cloud_ptr{new pcl::PointCloud<pcl::PointXYZ>};
+
+  if (cloud_helpers::loadCloudFromFile(original_cloud_file_name, original_cloud_ptr) == -1) {
+    return -1;
+  }
+
+  PointCloudProcessorEngine eng{filtering_meank,
                                 filtering_stddevmulthresh,
                                 voxelization_leaf_size_x,
                                 voxelization_leaf_size_y,
@@ -409,9 +418,7 @@ int main() {
                                 segmentation_smoothness_threshold,
                                 segmentation_curvature_threshold};
 
-  if (eng.loadOriginalCloudFromFile() == -1) {
-    return -1;
-  }
+  eng.setOriginalCloud(original_cloud_ptr);
 
   cloud_helpers::printCloudInfo(eng.getOriginalCloudName(),
                                 eng.getOriginalCloud());
