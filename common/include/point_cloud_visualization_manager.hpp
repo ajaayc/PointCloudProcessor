@@ -3,6 +3,9 @@
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/point_cloud_color_handlers.h>
+#include <thread>
+
+using namespace std::chrono_literals;
 
 class PointCloudVisualizationManager {
   pcl::visualization::PCLVisualizer::Ptr viewer;

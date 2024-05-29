@@ -2,6 +2,12 @@
 #define _CLOUD_HELPERS_HPP_
 
 #include <fstream>
+#include <vector>
+#include <string>
+#include <pcl/point_cloud.h>
+#include <pcl/common/io.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
 
 namespace cloud_helpers {
 

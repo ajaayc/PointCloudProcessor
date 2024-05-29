@@ -1,16 +1,11 @@
 #include <fstream>
 #include <iostream>
 #include <pcl/common/io.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/filters/filter_indices.h> // for pcl::removeNaNFromPointCloud
-#include <pcl/filters/statistical_outlier_removal.h>
-#include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
 #include <string>
 #include <thread>
-
-using namespace std::chrono_literals;
 
 #include "cloud_helpers.hpp"
 #include "point_cloud_visualization_manager.hpp"

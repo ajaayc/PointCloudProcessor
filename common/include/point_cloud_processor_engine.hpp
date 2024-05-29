@@ -5,9 +5,9 @@
 #include <pcl/filters/filter_indices.h> // for pcl::removeNaNFromPointCloud
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/voxel_grid.h>
-#include <pcl/segmentation/region_growing.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/search/search.h>
+#include <pcl/segmentation/region_growing.h>
 
 class PointCloudProcessorEngine {
   pcl::PointCloud<pcl::PointXYZ>::Ptr original_cloud;
@@ -78,11 +78,11 @@ public:
   // rerunning, filterOriginalCloud, voxelizeFilteredCloud, and
   // segmentVoxelizedCloud (in that order).
 
-  //NOTE: Ptr is copied, so if changes to original pointer are made
-  //outside of the class, the changes will propagate to this object.
-  void setOriginalCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr new_original_cloud)
-  {
-     original_cloud = new_original_cloud;
+  // NOTE: Ptr is copied, so if changes to original pointer are made
+  // outside of the class, the changes will propagate to this object.
+  void
+  setOriginalCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr new_original_cloud) {
+    original_cloud = new_original_cloud;
   }
 
   pcl::PointCloud<pcl::PointXYZ>::ConstPtr getOriginalCloud() const {
@@ -137,8 +137,8 @@ private:
     sor.setMeanK(filtering_meank);
     sor.setStddevMulThresh(filtering_stddevmulthresh);
     sor.filter(*filtered_cloud);
-    //Uncomment this line to enable writing the cloud to a file
-    //cloud_helpers::writeCloudToFile(filtered_cloud_filename, filtered_cloud);
+    // Uncomment this line to enable writing the cloud to a file
+    // cloud_helpers::writeCloudToFile(filtered_cloud_filename, filtered_cloud);
 #else
     cloud_helpers::loadCloudFromFile(filtered_cloud_filename, filtered_cloud);
     // copyPointCloud(*input_cloud, *filtered_cloud);
