@@ -7,24 +7,29 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
-
 find_package(PCL 1.2 REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 include_directories(../common/include)
+include_directories(include/ros_pcl_visualizer)
 
 add_executable(point_cloud_subscriber_node src/point_cloud_subscriber_node.cpp)
+ament_target_dependencies(
+  point_cloud_subscriber_node
+  rclcpp
+  sensor_msgs
+)
+
 target_include_directories(point_cloud_subscriber_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(point_cloud_subscriber_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-target_link_libraries(point_cloud_subscriber_node ${PCL_LIBRARIES})
+target_link_libraries(point_cloud_subscriber_node ${PCL_LIBRARIES} ${std_msgs_LIBRARIES})
 
 install(TARGETS point_cloud_subscriber_node
   DESTINATION lib/${PROJECT_NAME})
