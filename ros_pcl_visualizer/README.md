@@ -1,0 +1,3 @@
+colcon build
+source install/local_setup.bash
+ros2 run ros_pcl_visualizer point_cloud_subscriber_node
