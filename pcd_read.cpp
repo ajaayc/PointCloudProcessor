@@ -337,7 +337,8 @@ private:
     sor.setMeanK(filtering_meank);
     sor.setStddevMulThresh(filtering_stddevmulthresh);
     sor.filter(*filtered_cloud);
-    cloud_helpers::writeCloudToFile(filtered_cloud_filename, filtered_cloud);
+    //Uncomment this line to enable writing the cloud to a file
+    //cloud_helpers::writeCloudToFile(filtered_cloud_filename, filtered_cloud);
 #else
     cloud_helpers::loadCloudFromFile(filtered_cloud_filename, filtered_cloud);
     // copyPointCloud(*input_cloud, *filtered_cloud);
