@@ -12,8 +12,8 @@
 #include "point_cloud_processor_engine.hpp"
 
 int main() {
-  std::string original_cloud_file_name = "scans.pcd";
-  std::string parameters_file_name = "parameters.txt";
+  std::string original_cloud_file_name = "../scans.pcd";
+  std::string parameters_file_name = "../parameters.txt";
 
   int filtering_meank;                      //{30};
   double filtering_stddevmulthresh;         //{1.0f};

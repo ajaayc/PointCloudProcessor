@@ -1,0 +1,11 @@
+filtering_meank                               30
+filtering_stddevmulthresh                    1.0
+voxelization_leaf_size_x                     0.2
+voxelization_leaf_size_y                     0.2
+voxelization_leaf_size_z                     0.2
+segmentation_k_search_count                   50
+segmentation_min_cluster_size                 20
+segmentation_max_cluster_size            1000000
+segmentation_num_neighbors                    30
+segmentation_smoothness_threshold         0.0349
+segmentation_curvature_threshold             1.0
