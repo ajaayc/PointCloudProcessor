@@ -85,6 +85,12 @@ public:
     original_cloud = new_original_cloud;
   }
 
+
+  //Voxelizes the original point cloud, no filtering.
+  void voxelizeOriginalCloud() {
+    voxelizeCloud(original_cloud, voxelized_cloud);
+  }
+
   pcl::PointCloud<pcl::PointXYZ>::ConstPtr getOriginalCloud() const {
     return original_cloud;
   }
@@ -112,6 +118,7 @@ public:
   std::string getVoxelizedCloudName() const { return "Voxelized Cloud"; }
 
   std::string getSegmentedCloudName() const { return "Segmented Cloud"; }
+
 
 private:
   void voxelizeCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud,
