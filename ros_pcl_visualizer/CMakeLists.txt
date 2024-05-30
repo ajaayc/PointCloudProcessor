@@ -7,6 +7,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(pcl_conversions REQUIRED)
 find_package(PCL 1.2 REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -23,6 +24,7 @@ ament_target_dependencies(
   point_cloud_subscriber_node
   rclcpp
   sensor_msgs
+  pcl_conversions
 )
 
 target_include_directories(point_cloud_subscriber_node PUBLIC
