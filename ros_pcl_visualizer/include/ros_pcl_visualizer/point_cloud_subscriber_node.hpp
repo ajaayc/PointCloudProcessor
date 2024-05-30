@@ -72,45 +72,21 @@ protected:
     cloud_helpers::printCloudInfo(eng.getOriginalCloudName(),
                                   eng.getOriginalCloud());
 
-    eng.filterOriginalCloud();
-
-    cloud_helpers::printCloudInfo(eng.getFilteredCloudName(),
-                                  eng.getFilteredCloud());
-
-    eng.voxelizeFilteredCloud();
+    eng.voxelizeOriginalCloud();
+    pcl::PointCloud<pcl::PointXYZ>::ConstPtr voxelized_cloud =
+        eng.getVoxelizedCloud();
 
     cloud_helpers::printCloudInfo(eng.getVoxelizedCloudName(),
                                   eng.getVoxelizedCloud());
 
-    eng.segmentVoxelizedCloud();
+    pcl::PCLPointCloud2::Ptr voxelized_cloud2(new pcl::PCLPointCloud2());
 
-    cloud_helpers::printSegmentedCloudInfo(eng.getSegmentedCloudName(),
-                                           eng.getSegmentedCloudClusters(),
-                                           eng.getSegmentedCloud());
+    // PCL Pointcloud to PCL Pointcloud2
+    pcl::toPCLPointCloud2(*voxelized_cloud, *voxelized_cloud2);
 
-    pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr segmented_cloud =
-        eng.getSegmentedCloud();
-
-    // cloud_helpers::printCloudPoints(segmented_cloud);
-
-    pcl::PCLPointCloud2::Ptr segmented_cloud2(new pcl::PCLPointCloud2());
-
-    pcl::toPCLPointCloud2(*segmented_cloud, *segmented_cloud2);
-
-    // std::cout << "segmented_cloud2 width: " << segmented_cloud2->width
-    //           << std::endl;
-    // std::cout << "segmented_cloud2 height: " << segmented_cloud2->height
-    //           << std::endl;
-
-    // Convert to ros message
+    // PCL Pointcloud2 to ROS2 Pointcloud2
     sensor_msgs::msg::PointCloud2 cloud_out;
-    pcl_conversions::moveFromPCL(*segmented_cloud2, cloud_out);
-
-    // std::cout << "cloud_out.width: " << cloud_out.width << std::endl;
-
-    // std::cout << "cloud_out.height: " << cloud_out.height << std::endl;
-
-    // std::cout << "cloud_out.is_dense: " << cloud_out.is_dense << std::endl;
+    pcl_conversions::moveFromPCL(*voxelized_cloud2, cloud_out);
 
     // For debugging
     // cloud_out = *msg;
