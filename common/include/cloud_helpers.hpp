@@ -76,6 +76,13 @@ void printCloudPoints(pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloud) {
               << std::endl;
 }
 
+//TODO: Template function
+void printCloudPoints(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud) {
+  for (const auto &point : *cloud)
+    std::cout << "    " << point.x << " " << point.y << " " << point.z
+              << std::endl;
+}
+
 void printSegmentedCloudInfo(
     const std::string &cloud_name,
     const std::vector<pcl::PointIndices> &clusters,
